@@ -1,0 +1,153 @@
+<!-- slogan -->
+<header class="dashboard-header">
+
+    <p class="dashboard-slogan">
+        UNISCITI ALLA NOSTRA GRANDE FAMIGLIA!
+    </p>
+
+</header>
+
+
+<!-- immagine palestra -->
+<section class="hero">
+
+    <img src="/images/palestra-hero.png" alt="Palestra FitZone" class="hero-image">
+
+</section>
+
+
+<!-- sezione che contiene tutti i box della dashboard -->
+<section class="dashboard-stats">
+
+
+    <!-- box per clienti -->
+    <div class="card">
+
+        <div class="card-body text-center">
+
+            <h5 class="card-title">
+                Clienti totali
+            </h5>
+
+            <p class="card-text">
+                {{ totaleClienti() }}
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- box per corsi -->
+    <div class="card">
+
+        <div class="card-body text-center">
+
+            <h5 class="card-title">
+                Corsi totali
+            </h5>
+
+            <p class="card-text">
+                {{ totaleCorsi() }}
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- box per posti disponibili -->
+    <div class="card">
+
+        <div class="card-body">
+
+            <h5 class="card-title">
+                Posti disponibili
+            </h5>
+
+            <!-- scorre tutti i corsi -->
+            @for (corso of corsi; track corso.id) {
+
+            <div class="d-flex justify-content-between mb-2">
+
+                <!-- nome del corso -->
+                <span>
+                        {{ corso.nome }}
+                    </span>
+
+                <!-- posti disponibili del corso -->
+                <span>
+                        {{ corso.postiDisponibili }} / 20
+                    </span>
+
+            </div>
+
+            }
+
+        </div>
+
+    </div>
+
+
+</section>
+
+<!-- scadenza abbonamenti -->
+<section class="scadenze-section">
+
+    <h3 class="scadenze-title">
+        Controllo scadenze abbonamenti:
+    </h3>
+
+    <!-- zona ricerca -->
+    <div class="scadenze-filtro">
+
+        <input type="date" class="form-control scadenze-date" [(ngModel)]="dataSelezionata" (ngModelChange)="filtraScadenze()">
+
+    </div>
+
+
+    <!-- risultati del filtro -->
+    @if (dataSelezionata) {
+
+    <div class="scadenze-risultati">
+
+        @for (cliente of clientiInScadenza; track cliente.id) {
+
+        <!-- cliente con abbonamento scaduto -->
+        <div class="scadenza-card">
+
+            <!-- nome e cognome -->
+            <div>
+                <span class="cliente-nome">
+                            {{ cliente.nome }} {{ cliente.cognome }}
+                        </span>
+
+                <span class="scaduto-label">
+                            Abbonamento scaduto
+                        </span>
+            </div>
+
+
+            <!-- data di scadenza -->
+            <div class="scadenza-data">
+                {{ cliente.scadenzaAbbonamento | date:'dd/MM/yyyy' }}
+            </div>
+
+        </div>
+
+        }
+
+        <!-- nessun abbonamento scaduto -->
+        @if (clientiInScadenza.length === 0) {
+
+        <div class="nessuna-scadenza">
+            Nessun abbonamento scaduto entro questa data.
+        </div>
+
+        }
+
+    </div>
+
+    }
+
+</section>

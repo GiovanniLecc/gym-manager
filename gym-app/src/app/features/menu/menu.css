@@ -1,0 +1,59 @@
+/* il menu laterale occupa tutta l'altezza della pagina e non si restringe */
+
+:host {
+    display: block;
+    flex-shrink: 0;
+}
+
+
+/* Sidebar laterale */
+
+.sidebar {
+    /* larghezza del menu laterale */
+    width: 280px;
+    /* occupa tutta l'altezza dello schermo */
+    height: 100vh;
+    /* mantiene il menu fermo mentre la pagina scorre */
+    position: sticky;
+    /* lo mantiene attaccato alla parte superiore */
+    top: 0;
+    /* evita che la sidebar si restringa */
+    flex-shrink: 0;
+    /* colore di sfondo */
+    background-color: #212529;
+    /* se il menu diventa più alto dello schermo,
+       permette di scorrere al suo interno */
+    overflow-y: auto;
+}
+
+
+/* Le sezioni sono nascoste inizialmente */
+
+.menu-sezioni {
+    display: none;
+}
+
+
+/* Passando sulla sidebar compaiono le sezioni */
+
+.sidebar:hover .menu-sezioni {
+    display: block;
+}
+
+
+/* LOGO SIDEBAR */
+
+.sidebar-logo {
+    /* centra il logo nella sidebar */
+    display: flex;
+    justify-content: center;
+    /* spazio sopra e sotto il logo */
+    padding: 20px 10px;
+}
+
+.sidebar-logo img {
+    /* dimensione del logo */
+    width: 130px;
+    /* mantiene le proporzioni */
+    height: auto;
+}

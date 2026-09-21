@@ -1,0 +1,141 @@
+<!-- Messaggio di errore -->
+@if (messaggioErrore) {
+<div class="alert alert-danger">
+    {{messaggioErrore}}
+</div>
+}
+
+<table class="table table-hover align-middle">
+
+    <thead>
+        <!-- tr riga, th table head-->
+        <tr>
+            <th scope="col"> Nome</th>
+            <th scope="col"> Giorno</th>
+            <th scope="col"> Orario</th>
+            <th scope="col"> Posti Disponibili</th>
+            <th scope="col"> Azioni</th>
+
+        </tr>
+    </thead>
+
+    <tbody>
+
+        @for (corso of corsi(); track corso.id) {
+
+        <tr>
+            <!-- td table data-->
+            <td> {{ corso.nome }}</td>
+            <td> {{ corso.giorno }}</td>
+            <td> {{ corso.orario }}</td>
+            <td> {{ corso.postiDisponibili }}</td>
+            <td>
+                <div class="d-flex gap-2">
+
+                    <button class="btn btn-outline-primary btn-sm" (click)="startEdit(corso)">
+                            Modifica
+                        </button>
+
+                    <button class="btn btn-outline-danger btn-sm" (click)="deleteCorso(corso.id)">
+                            Elimina
+                        </button>
+
+                </div>
+            </td>
+        </tr>
+
+        }
+
+    </tbody>
+
+</table>
+
+<!--Update -->
+@if (editingCorso) {
+<div class="card form-card shadow-sm mb-4">
+    <div class="card-body p-4">
+
+        <h4 class="mb-4">Modifica corso</h4>
+
+        <div class="row g-3">
+
+            <div class="col-md-6">
+                <input type="text" class="form-control" [(ngModel)]="editingCorso.nome" name="nome" placeholder="Nome">
+            </div>
+
+            <div class="col-md-6">
+
+                <select class="form-select" [(ngModel)]="editingCorso.giorno" name="giorno">
+                    
+                    @for (giorno of giorni; track giorno) {
+                        <option [value]="giorno">
+                             {{ giorno }}
+                         </option>}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <input type="time" class="form-control" [(ngModel)]="editingCorso.orario" name="orario" placeholder="Orario">
+            </div>
+
+            <div class="col-md-6">
+                <input type="number" class="form-control" [(ngModel)]="editingCorso.postiDisponibili" name="postiDisponibili" placeholder="Posti Disponibili">
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary add-btn" (click)="updateCorso(editingCorso.id, editingCorso)">Aggiorna</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+}
+
+<!-- Create -->
+<div class="card form-card shadow-sm mb-4">
+    <div class="card-body p-4">
+
+        <h4 class="mb-4">Aggiungi corso</h4>
+
+        <form (ngSubmit)="addCorso()">
+
+            <div class="row g-3">
+
+                <div class="col-md-6">
+                    <input type="text" class="form-control" [(ngModel)]="newCorso.nome" name="nome" placeholder="Nome">
+                </div>
+
+                <div class="col-md-6">
+                    <select class="form-select" [(ngModel)]="newCorso.giorno" name="giorno">
+
+                        <option value="" disabled>Giorno</option>
+
+                            @for (giorno of giorni; track giorno) {
+                             <option [value]="giorno">
+                             {{ giorno }}
+                            </option>}
+                        </select>
+                </div>
+
+                <div class="col-md-6">
+                    <input type="time" class="form-control" [(ngModel)]="newCorso.orario" name="orario" placeholder="Orario">
+                </div>
+
+                <div class="col-md-6">
+                    <input type="number" class="form-control" [(ngModel)]="newCorso.postiDisponibili" name="postiDisponibili" placeholder="Posti Disponibili">
+                </div>
+
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary add-btn">
+                        Aggiungi
+                    </button>
+                </div>
+
+
+            </div>
+
+        </form>
+
+    </div>
+</div>

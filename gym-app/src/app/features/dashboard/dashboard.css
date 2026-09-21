@@ -1,0 +1,461 @@
+/* HEADER DASHBOARD*/
+
+.dashboard-header {
+    /* centra lo slogan orizzontalmente e verticalmente */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* altezza minima dell'header */
+    min-height: 65px;
+    /* spazio interno */
+    padding: 10px 20px;
+    /* sfondo bianco */
+    background-color: white;
+    /* occupa tutta la larghezza disponibile */
+    width: 100%;
+    /* include il padding nella larghezza */
+    box-sizing: border-box;
+}
+
+
+/* SLOGAN */
+
+.dashboard-slogan {
+    /* elimina il margine standard del paragrafo */
+    margin: 0;
+    /* dimensione responsive del testo */
+    font-size: clamp(18px, 2.5vw, 36px);
+    /* testo marcato */
+    font-weight: 700;
+    /* spazio tra le lettere */
+    letter-spacing: 3px;
+    /* mantiene lo slogan su una sola riga su desktop */
+    white-space: nowrap;
+    /* centra il testo */
+    text-align: center;
+    /* colore del testo */
+    color: #212529;
+    /* trasforma il testo in maiuscolo */
+    text-transform: uppercase;
+    /* evita che superi la larghezza disponibile */
+    max-width: 100%;
+}
+
+
+/* HERO */
+
+.hero {
+    /* occupa tutta la larghezza */
+    width: 100%;
+    /* altezza dell'immagine su desktop */
+    height: 430px;
+    /* nasconde le parti dell'immagine che escono */
+    overflow: hidden;
+}
+
+
+/* IMMAGINE HERO */
+
+.hero-image {
+    /* riempie completamente il contenitore */
+    width: 100%;
+    height: 100%;
+    /* mantiene le proporzioni senza deformare la foto */
+    object-fit: cover;
+    /* centra il ritaglio dell'immagine */
+    object-position: center;
+    /* elimina lo spazio che img può creare sotto */
+    display: block;
+}
+
+
+/* SEZIONE STATISTICHE */
+
+.dashboard-stats {
+    /* utilizziamo CSS Grid per organizzare le card */
+    display: grid;
+    /*
+       crea 3 colonne della stessa larghezza:
+       Clienti | Corsi | Posti disponibili
+    */
+    grid-template-columns: repeat(3, 1fr);
+    /* spazio tra una card e l'altra */
+    gap: 20px;
+    /* spazio intorno alle card */
+    padding: 30px;
+    /* occupa tutta la larghezza disponibile */
+    width: 100%;
+    /* include il padding nella larghezza */
+    box-sizing: border-box;
+    /* allinea tutte le card alla stessa altezza */
+    align-items: stretch;
+}
+
+
+/* CARD STATISTICHE */
+
+.dashboard-stats .card {
+    /* occupa tutta la colonna assegnata dalla Grid */
+    width: 100%;
+    /* occupa tutta l'altezza disponibile */
+    height: 100%;
+    /* angoli arrotondati */
+    border-radius: 12px;
+    /* nasconde eventuale contenuto fuori dai bordi */
+    overflow: hidden;
+    /* piccola ombra */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+
+/* CONTENUTO DELLE CARD */
+
+.dashboard-stats .card-body {
+    /* spazio interno */
+    padding: 25px;
+    /* altezza minima uguale per le tre card */
+    min-height: 160px;
+    /* permette di organizzare verticalmente il contenuto */
+    display: flex;
+    /* dispone gli elementi dall'alto verso il basso */
+    flex-direction: column;
+    /* centra il contenuto verticalmente */
+    justify-content: center;
+}
+
+
+/* TITOLI DELLE CARD */
+
+.dashboard-stats .card-title {
+    /* dimensione del titolo */
+    font-size: 20px;
+    /* rende il titolo marcato */
+    font-weight: 700;
+    /* spazio sotto il titolo */
+    margin-bottom: 18px;
+    /* centra il titolo */
+    text-align: center;
+    /* colore del titolo */
+    color: #212529;
+}
+
+
+/* NUMERI CLIENTI E CORSI */
+
+.dashboard-stats .card-text {
+    /* rende il numero più grande */
+    font-size: 30px;
+    /* rende il numero marcato */
+    font-weight: 700;
+    /* elimina il margine standard */
+    margin: 0;
+    /* centra il numero */
+    text-align: center;
+}
+
+
+/* TABLET Schermi inferiori a 992px */
+
+@media (max-width: 992px) {
+    /* ---------- Header ---------- */
+    .dashboard-header {
+        min-height: 60px;
+        padding: 10px 15px;
+    }
+    .dashboard-slogan {
+        /* slogan più piccolo */
+        font-size: 22px;
+        /* riduce lo spazio tra le lettere */
+        letter-spacing: 2px;
+    }
+    /* ---------- Hero ---------- */
+    .hero {
+        /* immagine meno alta */
+        height: 350px;
+    }
+    /* ---------- Statistiche ---------- */
+    .dashboard-stats {
+        /*
+           su tablet manteniamo ancora
+           le 3 card sulla stessa riga
+        */
+        grid-template-columns: repeat(3, 1fr);
+        /* riduce gli spazi */
+        gap: 15px;
+        padding: 20px;
+    }
+    .dashboard-stats .card-body {
+        /* card leggermente più compatte */
+        padding: 18px;
+        min-height: 150px;
+    }
+    .dashboard-stats .card-title {
+        /* titolo leggermente più piccolo */
+        font-size: 18px;
+    }
+    .dashboard-stats .card-text {
+        /* numero leggermente più piccolo */
+        font-size: 26px;
+    }
+}
+
+
+/* SMARTPHONE Schermi inferiori a 768px */
+
+@media (max-width: 768px) {
+    /* ---------- Header ---------- */
+    .dashboard-header {
+        height: auto;
+        min-height: 55px;
+        padding: 10px;
+    }
+    .dashboard-slogan {
+        /* testo più piccolo */
+        font-size: 16px;
+        /* meno spazio tra le lettere */
+        letter-spacing: 1.5px;
+        /*
+           permette allo slogan di andare a capo
+           se lo schermo è troppo stretto
+        */
+        white-space: normal;
+        /* utilizza tutta la larghezza */
+        width: 100%;
+    }
+    /* ---------- Hero ---------- */
+    .hero {
+        /* riduce l'altezza dell'immagine */
+        height: 280px;
+    }
+    .hero-image {
+        /* mantiene la foto proporzionata */
+        object-fit: cover;
+        /* mantiene visibile la parte centrale */
+        object-position: center;
+    }
+    /* ---------- Statistiche ---------- */
+    .dashboard-stats {
+        /*
+           su smartphone le card vengono
+           messe una sotto l'altra
+        */
+        grid-template-columns: 1fr;
+        /* riduce gli spazi */
+        gap: 15px;
+        padding: 15px;
+    }
+    .dashboard-stats .card-body {
+        /* riduce l'altezza delle card */
+        min-height: auto;
+        /* spazio interno più piccolo */
+        padding: 18px;
+    }
+    .dashboard-stats .card-title {
+        font-size: 17px;
+        margin-bottom: 12px;
+    }
+    .dashboard-stats .card-text {
+        font-size: 24px;
+    }
+}
+
+
+/* SMARTPHONE PICCOLI Schermi inferiori a 480px */
+
+@media (max-width: 480px) {
+    /* ---------- Header ---------- */
+    .dashboard-header {
+        padding: 8px;
+    }
+    .dashboard-slogan {
+        /* slogan ancora più piccolo */
+        font-size: 14px;
+        letter-spacing: 1px;
+    }
+    /* ---------- Hero ---------- */
+    .hero {
+        /* immagine più compatta */
+        height: 220px;
+    }
+    /* ---------- Statistiche ---------- */
+    .dashboard-stats {
+        /* riduce ulteriormente gli spazi */
+        gap: 12px;
+        padding: 12px;
+    }
+    .dashboard-stats .card-body {
+        padding: 15px;
+    }
+    .dashboard-stats .card-title {
+        font-size: 16px;
+    }
+    .dashboard-stats .card-text {
+        font-size: 22px;
+    }
+}
+
+
+/* SEZIONE SCADENZE ABBONAMENTI */
+
+.scadenze-section {
+    /* spazio rispetto alle statistiche superiori */
+    margin: 10px 30px 30px;
+    /* spazio interno */
+    padding: 25px;
+    /* sfondo della sezione */
+    background-color: white;
+    /* bordo */
+    border: 1px solid #dee2e6;
+    /* angoli arrotondati */
+    border-radius: 12px;
+    /* piccola ombra */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+
+/* TITOLO SCADENZE */
+
+.scadenze-title {
+    /* dimensione titolo */
+    font-size: 22px;
+    /* testo marcato */
+    font-weight: 700;
+    /* spazio sotto il titolo */
+    margin-bottom: 25px;
+    /* colore */
+    color: #212529;
+}
+
+
+/* FILTRO DATA */
+
+.scadenze-filtro {
+    /* limita la larghezza del selettore */
+    max-width: 400px;
+    /* spazio sotto il filtro */
+    margin-bottom: 25px;
+}
+
+.scadenze-filtro .form-label {
+    /* rende più visibile la descrizione */
+    font-weight: 600;
+    /* piccolo spazio sotto la label */
+    margin-bottom: 8px;
+}
+
+.scadenze-date {
+    /* rende il campo leggermente più alto */
+    min-height: 45px;
+}
+
+
+/* RISULTATI */
+
+.scadenze-risultati {
+    /* dispone i risultati in verticale */
+    display: flex;
+    flex-direction: column;
+    /* spazio tra un risultato e l'altro */
+    gap: 10px;
+}
+
+
+/* ABBONAMENTO SCADUTO */
+
+.scadenza-card {
+    /* nome a sinistra e data a destra */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* spazio interno */
+    padding: 15px 18px;
+    /* sfondo rosso molto chiaro */
+    background-color: #f8d7da;
+    /* bordo rosso */
+    border: 1px solid #f1aeb5;
+    /* bordo rosso più evidente a sinistra */
+    border-left: 5px solid #dc3545;
+    /* angoli arrotondati */
+    border-radius: 8px;
+    /* testo rosso scuro */
+    color: #842029;
+}
+
+
+/* NOME CLIENTE */
+
+.cliente-nome {
+    /* mette nome e cognome in evidenza */
+    font-weight: 700;
+    /* dimensione testo */
+    font-size: 16px;
+}
+
+
+/* SCRITTA ABBONAMENTO SCADUTO */
+
+.scaduto-label {
+    /* va sotto al nome */
+    display: block;
+    /* dimensione più piccola */
+    font-size: 13px;
+    /* piccolo spazio sopra */
+    margin-top: 3px;
+    /* colore rosso */
+    color: #b02a37;
+}
+
+
+/* DATA DI SCADENZA */
+
+.scadenza-data {
+    /* mette la data in evidenza */
+    font-weight: 700;
+    /* impedisce alla data di spezzarsi */
+    white-space: nowrap;
+}
+
+
+/* NESSUNA SCADENZA */
+
+.nessuna-scadenza {
+    /* spazio interno */
+    padding: 15px;
+    /* sfondo neutro */
+    background-color: #f8f9fa;
+    /* bordo */
+    border: 1px solid #dee2e6;
+    /* angoli arrotondati */
+    border-radius: 8px;
+    /* colore testo */
+    color: #6c757d;
+    /* centra il messaggio */
+    text-align: center;
+}
+
+
+/* RESPONSIVE SMARTPHONE */
+
+@media (max-width: 768px) {
+    .scadenze-section {
+        /* riduce margini e padding */
+        margin: 10px 15px 20px;
+        padding: 18px;
+    }
+    .scadenze-title {
+        /* titolo più piccolo */
+        font-size: 19px;
+    }
+    .scadenze-filtro {
+        /* il campo data occupa tutta la larghezza */
+        max-width: 100%;
+    }
+    .scadenza-card {
+        /* su smartphone nome e data vanno in verticale */
+        flex-direction: column;
+        /* allinea tutto a sinistra */
+        align-items: flex-start;
+        /* spazio tra nome e data */
+        gap: 10px;
+    }
+}

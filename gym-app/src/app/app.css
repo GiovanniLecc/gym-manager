@@ -1,0 +1,5 @@
+/*permette di non superare la frandezza del contenitore */
+
+.content {
+    min-width: 0;
+}

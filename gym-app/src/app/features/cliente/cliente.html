@@ -1,0 +1,256 @@
+<!-- READ - tabella clienti -->
+<div class="table-responsive">
+
+    <table class="table table-hover align-middle">
+
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Cognome</th>
+                <th>Email</th>
+                <th>Corso</th>
+                <th>Scadenza abbonamento</th>
+                <th>Azioni</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            @for (cliente of clienti(); track cliente.id) {
+
+            <tr>
+
+                <!-- Visualizza dati cliente -->
+                <td>{{ cliente.nome }}</td>
+                <td>{{ cliente.cognome }}</td>
+                <td>{{ cliente.email }}</td>
+
+                <!-- Il nome del corso arriva dal backend tramite JOIN -->
+                <td>{{ cliente.corsoNome }}</td>
+
+                <td>
+                    {{ cliente.scadenzaAbbonamento | date:'dd/MM/yyyy' }}
+                </td>
+
+
+                <!-- Azioni -->
+                <td>
+
+                    <div class="d-flex gap-2">
+
+                        <button class="btn btn-outline-primary btn-sm" (click)="startEdit(cliente)">
+                                Modifica
+                            </button>
+
+                        <button class="btn btn-outline-danger btn-sm" (click)="deleteCliente(cliente.id)">
+                                Elimina
+                            </button>
+
+                    </div>
+
+                </td>
+
+            </tr>
+
+            }
+
+        </tbody>
+
+    </table>
+
+</div>
+
+
+
+<!-- UPDATE -->
+@if (editingCliente) {
+
+<div class="card form-card shadow-sm mb-4">
+
+    <div class="card-body p-4">
+
+        <h4 class="mb-4">
+            Modifica cliente
+        </h4>
+
+
+        <div class="row g-3">
+
+
+            <!-- Nome -->
+            <div class="col-md-6">
+
+                <input type="text" class="form-control" [(ngModel)]="editingCliente.nome" name="nome" placeholder="Nome">
+
+            </div>
+
+
+            <!-- Cognome -->
+            <div class="col-md-6">
+
+                <input type="text" class="form-control" [(ngModel)]="editingCliente.cognome" name="cognome" placeholder="Cognome">
+
+            </div>
+
+
+            <!-- Email -->
+            <div class="col-md-6">
+
+                <input type="email" class="form-control" [(ngModel)]="editingCliente.email" name="email" placeholder="Email">
+
+            </div>
+
+
+            <!-- Corso -->
+            <div class="col-md-6">
+
+                <select class="form-select" [(ngModel)]="editingCliente.corsoId" name="corso">
+
+                    @for (corso of corsi; track corso.id) {
+
+                        <!--
+                            Usiamo ngValue perché corso.id è un number.
+                            Angular invierà quindi l'id del corso,
+                            non il suo nome.
+                        -->
+                        <option [ngValue]="corso.id">
+                            {{ corso.nome }}
+                        </option>
+
+                    }
+
+                </select>
+
+            </div>
+
+
+            <!-- Scadenza abbonamento -->
+            <div class="col-md-6">
+
+                <input type="date" class="form-control" [(ngModel)]="editingCliente.scadenzaAbbonamento" name="abbonamento">
+
+            </div>
+
+
+            <!-- Pulsante aggiorna -->
+            <div class="col-12">
+
+                <button type="button" class="btn btn-primary add-btn" (click)="updateCliente(
+                        editingCliente.id,
+                        editingCliente
+                    )">
+                    Aggiorna
+                </button>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+</div>
+
+}
+
+
+
+<!-- CREATE -->
+<div class="card form-card shadow-sm mb-4">
+
+    <div class="card-body p-4">
+
+        <h4 class="mb-4">
+            Aggiungi cliente
+        </h4>
+
+
+        <form (ngSubmit)="addCliente()">
+
+
+            <!-- Messaggio di errore -->
+            @if (messaggioErrore) {
+
+            <div class="alert alert-danger">
+                {{ messaggioErrore }}
+            </div>
+
+            }
+
+
+            <div class="row g-3">
+
+
+                <!-- Nome -->
+                <div class="col-md-6">
+
+                    <input type="text" class="form-control" [(ngModel)]="newCliente.nome" name="nome" placeholder="Nome">
+
+                </div>
+
+
+                <!-- Cognome -->
+                <div class="col-md-6">
+
+                    <input type="text" class="form-control" [(ngModel)]="newCliente.cognome" name="cognome" placeholder="Cognome">
+
+                </div>
+
+
+                <!-- Email -->
+                <div class="col-md-6">
+
+                    <input type="email" class="form-control" [(ngModel)]="newCliente.email" name="email" placeholder="Email">
+
+                </div>
+
+
+                <!-- Scadenza abbonamento -->
+                <div class="col-md-6">
+
+                    <input type="date" class="form-control" [(ngModel)]="newCliente.scadenzaAbbonamento" name="abbonamento">
+
+                </div>
+
+
+                <!-- Corso -->
+                <div class="col-md-6">
+
+                    <select class="form-select" [(ngModel)]="newCliente.corsoId" name="corso">
+
+                        <!-- 0 significa che non è stato ancora scelto un corso -->
+                        <option [ngValue]="0" disabled>
+                            Corso
+                        </option>
+
+
+                        @for (corso of corsi; track corso.id) {
+
+                            <option [ngValue]="corso.id">
+                                {{ corso.nome }}
+                            </option>
+
+                        }
+
+                    </select>
+
+                </div>
+
+
+                <!-- Pulsante aggiungi -->
+                <div class="col-12">
+
+                    <button type="submit" class="btn btn-primary add-btn">
+                        Aggiungi
+                    </button>
+
+                </div>
+
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
