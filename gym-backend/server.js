@@ -23,12 +23,16 @@ const PORT = 3000;
 
 // connessione al database MySQL
 const db = mysql.createConnection({
-
     host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+    database: process.env.DB_NAME,
 
+    // Aiven richiede una connessione SSL
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 // prova la connessione al database
