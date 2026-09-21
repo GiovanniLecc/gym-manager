@@ -18,8 +18,9 @@ app.use(express.json());
 // permette ad Angular di comunicare con il backend
 app.use(cors());
 
-// porta su cui funzionerà il backend
-const PORT = 3000;
+// Render fornisce la porta in produzione,
+// mentre in locale utilizziamo la porta 3000.
+const PORT = process.env.PORT || 3000;
 
 // connessione al database MySQL
 const db = mysql.createConnection({
@@ -924,9 +925,6 @@ app.put('/corsi/:id', (req, res) => {
 
 });
 
-// avvia il server
 app.listen(PORT, () => {
-
     console.log(`Server avviato sulla porta ${PORT}`);
-
 });
