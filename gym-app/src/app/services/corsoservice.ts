@@ -52,25 +52,4 @@ updateCorso(
 
 }
 
-// OCCUPA POSTO diminuisce di 1 i posti disponibili nel database
-occupaPosto(id: number): Observable<void> {
-
-  return this.http.put<void>(
-    `${this.apiUrl}/${id}/occupa-posto`,
-    {}
-  );
-
-}
-
-
-// LIBERA POSTO aumenta di 1 i posti disponibili nel database
-liberaPosto(id: number): Observable<void> {
-
-  return this.http.put<void>(
-    `${this.apiUrl}/${id}/libera-posto`,
-    {}
-  );
-
-}
-
 }
