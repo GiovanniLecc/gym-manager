@@ -11,7 +11,7 @@ import { Observable } from 'rxjs';
 export class CorsoService {
 
   // indirizzo dell'API dei corsi nel backend
-  private apiUrl = 'http://localhost:3000/corsi';
+  private apiUrl = 'https://gym-manager-q5j2.onrender.com/corsi';
 
   constructor(private http: HttpClient) {}
   

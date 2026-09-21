@@ -22,7 +22,7 @@ export type ClienteInput = Omit<Cliente, 'id' | 'corsoNome'>;
 export class ClienteService {
 
   // Indirizzo delle API del backend
-  private apiUrl = 'http://localhost:3000/clienti';
+  private apiUrl = 'https://gym-manager-q5j2.onrender.com/clienti';
 
 
   // HttpClient permette di comunicare con il backend
