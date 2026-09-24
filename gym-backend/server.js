@@ -1,43 +1,49 @@
+// Carica le variabili presenti nel file .env
 require('dotenv').config();
 
-// importa Express
+// Importa Express
 const express = require('express');
 
-// importa CORS
+// Importa CORS
 const cors = require('cors');
 
-// crea il server Express
-const app = express();
-
-// importa mysql2 (il nostro database)
+// Importa mysql2
 const mysql = require('mysql2');
 
-// permette al server di ricevere dati JSON
+// Crea il server Express
+const app = express();
+
+// Permette al server di ricevere dati JSON
 app.use(express.json());
 
-// permette ad Angular di comunicare con il backend
+// Permette ad Angular di comunicare con il backend
 app.use(cors());
 
 // Render fornisce la porta in produzione,
-// mentre in locale utilizziamo la porta 3000.
+// mentre in locale utilizziamo la porta 3000
 const PORT = process.env.PORT || 3000;
 
-// connessione al database MySQL
-const db = mysql.createConnection({
+
+// Pool di connessioni al database MySQL
+const db = mysql.createPool({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT),
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
 
-    // Aiven richiede una connessione SSL
     ssl: {
         rejectUnauthorized: false
-    }
+    },
+
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-// prova la connessione al database
-db.connect((errore) => {
+
+// Verifica la connessione al database
+db.getConnection((errore, connection) => {
 
     if (errore) {
         console.error('Errore connessione MySQL:', errore);
@@ -46,6 +52,8 @@ db.connect((errore) => {
 
     console.log('Connesso al database gym_manager');
 
+    // Restituisce la connessione al pool
+    connection.release();
 });
 
 // GET - restituisce tutti i clienti presenti nel database
@@ -113,12 +121,12 @@ app.post('/clienti', (req, res) => {
     } = req.body;
 
 
-    // Inizia una transazione
-    db.beginTransaction((errore) => {
+    // Prende una connessione dal pool
+    db.getConnection((errore, connection) => {
 
         if (errore) {
             console.error(
-                'Errore nell\'avvio della transazione:',
+                'Errore nel recupero della connessione:',
                 errore
             );
 
@@ -128,144 +136,205 @@ app.post('/clienti', (req, res) => {
         }
 
 
-        // Controlla che il corso esista e che abbia posti disponibili
-        const sqlCorso = `
-            SELECT id, posti_disponibili
-            FROM corsi
-            WHERE id = ?
-            FOR UPDATE
-        `;
-
-        db.query(sqlCorso, [corsoId], (errore, corsi) => {
+        // Inizia la transazione sulla stessa connessione
+        connection.beginTransaction((errore) => {
 
             if (errore) {
-                return db.rollback(() => {
-                    console.error(
-                        'Errore nel controllo del corso:',
-                        errore
-                    );
 
-                    res.status(500).json({
-                        errore: 'Errore nel controllo del corso'
-                    });
+                // Restituisce la connessione al pool
+                connection.release();
+
+                console.error(
+                    'Errore nell\'avvio della transazione:',
+                    errore
+                );
+
+                return res.status(500).json({
+                    errore: 'Errore del server'
                 });
             }
 
 
-            // Il corso indicato non esiste
-            if (corsi.length === 0) {
-                return db.rollback(() => {
-                    res.status(404).json({
-                        errore: 'Corso non trovato'
-                    });
-                });
-            }
-
-
-            // Il corso esiste ma non ha più posti
-            if (corsi[0].posti_disponibili <= 0) {
-                return db.rollback(() => {
-                    res.status(400).json({
-                        errore: 'Il corso è al completo'
-                    });
-                });
-            }
-
-
-            // Inserisce il cliente utilizzando corso_id
-            const sqlCliente = `
-                INSERT INTO clienti
-                (
-                    nome,
-                    cognome,
-                    email,
-                    corso_id,
-                    scadenza_abbonamento
-                )
-                VALUES (?, ?, ?, ?, ?)
+            // Controlla che il corso esista
+            // e che abbia posti disponibili
+            const sqlCorso = `
+                SELECT id, posti_disponibili
+                FROM corsi
+                WHERE id = ?
+                FOR UPDATE
             `;
 
-            const valoriCliente = [
-                nome,
-                cognome,
-                email,
-                corsoId,
-                scadenzaAbbonamento
-            ];
 
-            db.query(
-                sqlCliente,
-                valoriCliente,
-                (errore, risultato) => {
+            // IMPORTANTE:
+            // usiamo connection.query e non db.query
+            connection.query(
+                sqlCorso, [corsoId],
+                (errore, corsi) => {
 
                     if (errore) {
-                        return db.rollback(() => {
+
+                        return connection.rollback(() => {
+
+                            connection.release();
+
                             console.error(
-                                'Errore nell\'aggiunta del cliente:',
+                                'Errore nel controllo del corso:',
                                 errore
                             );
 
                             res.status(500).json({
-                                errore: 'Errore nell\'aggiunta del cliente'
+                                errore: 'Errore nel controllo del corso'
                             });
                         });
                     }
 
 
-                    // Occupa un posto nel corso scelto
-                    const sqlPosto = `
-                        UPDATE corsi
-                        SET posti_disponibili = posti_disponibili - 1
-                        WHERE id = ?
+                    // Il corso non esiste
+                    if (corsi.length === 0) {
+
+                        return connection.rollback(() => {
+
+                            connection.release();
+
+                            res.status(404).json({
+                                errore: 'Corso non trovato'
+                            });
+                        });
+                    }
+
+
+                    // Il corso non ha più posti disponibili
+                    if (corsi[0].posti_disponibili <= 0) {
+
+                        return connection.rollback(() => {
+
+                            connection.release();
+
+                            res.status(400).json({
+                                errore: 'Il corso è al completo'
+                            });
+                        });
+                    }
+
+
+                    // Inserisce il cliente
+                    const sqlCliente = `
+                        INSERT INTO clienti
+                        (
+                            nome,
+                            cognome,
+                            email,
+                            corso_id,
+                            scadenza_abbonamento
+                        )
+                        VALUES (?, ?, ?, ?, ?)
                     `;
 
-                    db.query(
-                        sqlPosto, [corsoId],
-                        (errore) => {
+
+                    const valoriCliente = [
+                        nome,
+                        cognome,
+                        email,
+                        corsoId,
+                        scadenzaAbbonamento
+                    ];
+
+
+                    connection.query(
+                        sqlCliente,
+                        valoriCliente,
+                        (errore, risultato) => {
 
                             if (errore) {
-                                return db.rollback(() => {
+
+                                return connection.rollback(() => {
+
+                                    connection.release();
+
                                     console.error(
-                                        'Errore nell\'aggiornamento dei posti:',
+                                        'Errore nell\'aggiunta del cliente:',
                                         errore
                                     );
 
                                     res.status(500).json({
-                                        errore: 'Errore nell\'aggiornamento dei posti'
+                                        errore: 'Errore nell\'aggiunta del cliente'
                                     });
                                 });
                             }
 
 
-                            // Tutte le operazioni sono riuscite:
-                            // salva definitivamente le modifiche
-                            db.commit((errore) => {
+                            // Occupa un posto nel corso
+                            const sqlPosto = `
+                                UPDATE corsi
+                                SET posti_disponibili =
+                                    posti_disponibili - 1
+                                WHERE id = ?
+                            `;
 
-                                if (errore) {
-                                    return db.rollback(() => {
-                                        console.error(
-                                            'Errore nel commit:',
-                                            errore
-                                        );
 
-                                        res.status(500).json({
-                                            errore: 'Errore nel salvataggio'
+                            connection.query(
+                                sqlPosto, [corsoId],
+                                (errore) => {
+
+                                    if (errore) {
+
+                                        return connection.rollback(() => {
+
+                                            connection.release();
+
+                                            console.error(
+                                                'Errore nell\'aggiornamento dei posti:',
+                                                errore
+                                            );
+
+                                            res.status(500).json({
+                                                errore: 'Errore nell\'aggiornamento dei posti'
+                                            });
                                         });
+                                    }
+
+
+                                    // Conferma definitivamente
+                                    // tutte le operazioni
+                                    connection.commit((errore) => {
+
+                                        if (errore) {
+
+                                            return connection.rollback(() => {
+
+                                                connection.release();
+
+                                                console.error(
+                                                    'Errore nel commit:',
+                                                    errore
+                                                );
+
+                                                res.status(500).json({
+                                                    errore: 'Errore nel salvataggio'
+                                                });
+                                            });
+                                        }
+
+
+                                        // La transazione è terminata:
+                                        // restituiamo la connessione al pool
+                                        connection.release();
+
+
+                                        // Risposta inviata ad Angular
+                                        res.status(201).json({
+                                            id: risultato.insertId,
+                                            nome,
+                                            cognome,
+                                            email,
+                                            corsoId,
+                                            scadenzaAbbonamento
+                                        });
+
                                     });
+
                                 }
-
-
-                                // Risposta inviata ad Angular
-                                res.status(201).json({
-                                    id: risultato.insertId,
-                                    nome,
-                                    cognome,
-                                    email,
-                                    corsoId,
-                                    scadenzaAbbonamento
-                                });
-
-                            });
+                            );
 
                         }
                     );
@@ -283,16 +352,15 @@ app.post('/clienti', (req, res) => {
 app.delete('/clienti/:id', (req, res) => {
 
     // Recupera l'id del cliente dall'URL
-    // Esempio: /clienti/4 -> id = 4
     const id = req.params.id;
 
 
-    // Inizia la transazione
-    db.beginTransaction((errore) => {
+    // Prende una connessione dal pool
+    db.getConnection((errore, connection) => {
 
         if (errore) {
             console.error(
-                'Errore nell\'avvio della transazione:',
+                'Errore nel recupero della connessione:',
                 errore
             );
 
@@ -302,127 +370,187 @@ app.delete('/clienti/:id', (req, res) => {
         }
 
 
-        // Prima di eliminare il cliente dobbiamo sapere
-        // a quale corso è iscritto
-        const sqlCliente = `
-            SELECT corso_id
-            FROM clienti
-            WHERE id = ?
-            FOR UPDATE
-        `;
-
-        db.query(sqlCliente, [id], (errore, clienti) => {
+        // Inizia la transazione sulla connessione ottenuta
+        connection.beginTransaction((errore) => {
 
             if (errore) {
-                return db.rollback(() => {
-                    console.error(
-                        'Errore nel recupero del cliente:',
-                        errore
-                    );
 
-                    res.status(500).json({
-                        errore: 'Errore nel recupero del cliente'
-                    });
+                connection.release();
+
+                console.error(
+                    'Errore nell\'avvio della transazione:',
+                    errore
+                );
+
+                return res.status(500).json({
+                    errore: 'Errore del server'
                 });
             }
 
 
-            // Se non esiste nessun cliente con questo id
-            if (clienti.length === 0) {
-                return db.rollback(() => {
-                    res.status(404).json({
-                        errore: 'Cliente non trovato'
-                    });
-                });
-            }
-
-
-            // Salviamo l'id del corso prima di eliminare il cliente
-            const corsoId = clienti[0].corso_id;
-
-
-            // Elimina il cliente
-            const sqlDelete = `
-                DELETE FROM clienti
+            // Recupera il corso a cui appartiene il cliente
+            const sqlCliente = `
+                SELECT corso_id
+                FROM clienti
                 WHERE id = ?
+                FOR UPDATE
             `;
 
-            db.query(sqlDelete, [id], (errore) => {
 
-                if (errore) {
-                    return db.rollback(() => {
-                        console.error(
-                            'Errore nell\'eliminazione del cliente:',
-                            errore
-                        );
-
-                        res.status(500).json({
-                            errore: 'Errore nell\'eliminazione del cliente'
-                        });
-                    });
-                }
-
-
-                // Libera un posto nel corso del cliente eliminato
-                const sqlPosto = `
-                    UPDATE corsi
-                    SET posti_disponibili = posti_disponibili + 1
-                    WHERE id = ?
-                `;
-
-                db.query(sqlPosto, [corsoId], (errore, risultato) => {
+            connection.query(
+                sqlCliente, [id],
+                (errore, clienti) => {
 
                     if (errore) {
-                        return db.rollback(() => {
+
+                        return connection.rollback(() => {
+
+                            connection.release();
+
                             console.error(
-                                'Errore nella liberazione del posto:',
+                                'Errore nel recupero del cliente:',
                                 errore
                             );
 
                             res.status(500).json({
-                                errore: 'Errore nella liberazione del posto'
+                                errore: 'Errore nel recupero del cliente'
                             });
                         });
                     }
 
 
-                    // Controllo di sicurezza:
-                    // il corso associato deve esistere
-                    if (risultato.affectedRows === 0) {
-                        return db.rollback(() => {
+                    // Il cliente non esiste
+                    if (clienti.length === 0) {
+
+                        return connection.rollback(() => {
+
+                            connection.release();
+
                             res.status(404).json({
-                                errore: 'Corso associato non trovato'
+                                errore: 'Cliente non trovato'
                             });
                         });
                     }
 
 
-                    // Eliminazione cliente + liberazione posto riuscite:
-                    // confermiamo entrambe le modifiche
-                    db.commit((errore) => {
+                    // Salviamo il corso del cliente
+                    // prima di eliminarlo
+                    const corsoId = clienti[0].corso_id;
 
-                        if (errore) {
-                            return db.rollback(() => {
-                                console.error(
-                                    'Errore nel commit:',
-                                    errore
-                                );
 
-                                res.status(500).json({
-                                    errore: 'Errore nel salvataggio'
+                    // Elimina il cliente
+                    const sqlDelete = `
+                        DELETE FROM clienti
+                        WHERE id = ?
+                    `;
+
+
+                    connection.query(
+                        sqlDelete, [id],
+                        (errore) => {
+
+                            if (errore) {
+
+                                return connection.rollback(() => {
+
+                                    connection.release();
+
+                                    console.error(
+                                        'Errore nell\'eliminazione del cliente:',
+                                        errore
+                                    );
+
+                                    res.status(500).json({
+                                        errore: 'Errore nell\'eliminazione del cliente'
+                                    });
                                 });
-                            });
+                            }
+
+
+                            // Libera un posto nel corso
+                            const sqlPosto = `
+                                UPDATE corsi
+                                SET posti_disponibili =
+                                    posti_disponibili + 1
+                                WHERE id = ?
+                            `;
+
+
+                            connection.query(
+                                sqlPosto, [corsoId],
+                                (errore, risultato) => {
+
+                                    if (errore) {
+
+                                        return connection.rollback(() => {
+
+                                            connection.release();
+
+                                            console.error(
+                                                'Errore nella liberazione del posto:',
+                                                errore
+                                            );
+
+                                            res.status(500).json({
+                                                errore: 'Errore nella liberazione del posto'
+                                            });
+                                        });
+                                    }
+
+
+                                    // Controllo di sicurezza
+                                    if (risultato.affectedRows === 0) {
+
+                                        return connection.rollback(() => {
+
+                                            connection.release();
+
+                                            res.status(404).json({
+                                                errore: 'Corso associato non trovato'
+                                            });
+                                        });
+                                    }
+
+
+                                    // Conferma definitivamente
+                                    // eliminazione + aggiornamento posto
+                                    connection.commit((errore) => {
+
+                                        if (errore) {
+
+                                            return connection.rollback(() => {
+
+                                                connection.release();
+
+                                                console.error(
+                                                    'Errore nel commit:',
+                                                    errore
+                                                );
+
+                                                res.status(500).json({
+                                                    errore: 'Errore nel salvataggio'
+                                                });
+                                            });
+                                        }
+
+
+                                        // Restituisce la connessione al pool
+                                        connection.release();
+
+
+                                        // Eliminazione completata
+                                        res.status(204).send();
+
+                                    });
+
+                                }
+                            );
+
                         }
+                    );
 
-
-                        // Operazione completata correttamente
-                        res.status(204).send();
-
-                    });
-
-                });
-
-            });
+                }
+            );
 
         });
 
@@ -447,12 +575,12 @@ app.put('/clienti/:id', (req, res) => {
     } = req.body;
 
 
-    // Inizia la transazione
-    db.beginTransaction((errore) => {
+    // Prende una connessione dal pool
+    db.getConnection((errore, connection) => {
 
         if (errore) {
             console.error(
-                'Errore nell\'avvio della transazione:',
+                'Errore nel recupero della connessione:',
                 errore
             );
 
@@ -462,250 +590,339 @@ app.put('/clienti/:id', (req, res) => {
         }
 
 
-        // Recupera il corso attuale del cliente
-        const sqlCliente = `
-            SELECT corso_id
-            FROM clienti
-            WHERE id = ?
-            FOR UPDATE
-        `;
-
-        db.query(sqlCliente, [id], (errore, clienti) => {
+        // Inizia la transazione
+        connection.beginTransaction((errore) => {
 
             if (errore) {
-                return db.rollback(() => {
-                    console.error(
-                        'Errore nel recupero del cliente:',
-                        errore
-                    );
 
-                    res.status(500).json({
-                        errore: 'Errore nel recupero del cliente'
-                    });
-                });
-            }
+                connection.release();
 
-
-            // Il cliente non esiste
-            if (clienti.length === 0) {
-                return db.rollback(() => {
-                    res.status(404).json({
-                        errore: 'Cliente non trovato'
-                    });
-                });
-            }
-
-
-            // Salva l'id del vecchio corso
-            const vecchioCorsoId = clienti[0].corso_id;
-
-
-            // Funzione che modifica i dati del cliente
-            const aggiornaCliente = () => {
-
-                const sqlUpdateCliente = `
-                    UPDATE clienti
-                    SET
-                        nome = ?,
-                        cognome = ?,
-                        email = ?,
-                        corso_id = ?,
-                        scadenza_abbonamento = ?
-                    WHERE id = ?
-                `;
-
-                const valori = [
-                    nome,
-                    cognome,
-                    email,
-                    corsoId,
-                    scadenzaAbbonamento,
-                    id
-                ];
-
-                db.query(
-                    sqlUpdateCliente,
-                    valori,
-                    (errore) => {
-
-                        if (errore) {
-                            return db.rollback(() => {
-                                console.error(
-                                    'Errore nella modifica del cliente:',
-                                    errore
-                                );
-
-                                res.status(500).json({
-                                    errore: 'Errore nella modifica del cliente'
-                                });
-                            });
-                        }
-
-
-                        // Tutto riuscito: conferma le modifiche
-                        db.commit((errore) => {
-
-                            if (errore) {
-                                return db.rollback(() => {
-                                    console.error(
-                                        'Errore nel commit:',
-                                        errore
-                                    );
-
-                                    res.status(500).json({
-                                        errore: 'Errore nel salvataggio'
-                                    });
-                                });
-                            }
-
-
-                            // Restituisce il cliente modificato
-                            res.status(200).json({
-                                id: Number(id),
-                                nome,
-                                cognome,
-                                email,
-                                corsoId,
-                                scadenzaAbbonamento
-                            });
-
-                        });
-
-                    }
+                console.error(
+                    'Errore nell\'avvio della transazione:',
+                    errore
                 );
-            };
 
-
-            // Se il corso NON è cambiato,
-            // aggiorna solamente i dati del cliente
-            if (Number(vecchioCorsoId) === Number(corsoId)) {
-                aggiornaCliente();
-                return;
+                return res.status(500).json({
+                    errore: 'Errore del server'
+                });
             }
 
 
-            // Se il corso è cambiato,
-            // controlla prima che il nuovo corso esista
-            // e abbia almeno un posto disponibile
-            const sqlNuovoCorso = `
-                SELECT id, posti_disponibili
-                FROM corsi
+            // Recupera il corso attuale del cliente
+            const sqlCliente = `
+                SELECT corso_id
+                FROM clienti
                 WHERE id = ?
                 FOR UPDATE
             `;
 
-            db.query(
-                sqlNuovoCorso, [corsoId],
-                (errore, corsi) => {
+
+            connection.query(
+                sqlCliente, [id],
+                (errore, clienti) => {
 
                     if (errore) {
-                        return db.rollback(() => {
+
+                        return connection.rollback(() => {
+
+                            connection.release();
+
                             console.error(
-                                'Errore nel controllo del nuovo corso:',
+                                'Errore nel recupero del cliente:',
                                 errore
                             );
 
                             res.status(500).json({
-                                errore: 'Errore nel controllo del nuovo corso'
+                                errore: 'Errore nel recupero del cliente'
                             });
                         });
                     }
 
 
-                    // Il nuovo corso non esiste
-                    if (corsi.length === 0) {
-                        return db.rollback(() => {
+                    // Il cliente non esiste
+                    if (clienti.length === 0) {
+
+                        return connection.rollback(() => {
+
+                            connection.release();
+
                             res.status(404).json({
-                                errore: 'Nuovo corso non trovato'
+                                errore: 'Cliente non trovato'
                             });
                         });
                     }
 
 
-                    // Il nuovo corso è pieno
-                    if (corsi[0].posti_disponibili <= 0) {
-                        return db.rollback(() => {
-                            res.status(400).json({
-                                errore: 'Il nuovo corso è al completo'
-                            });
-                        });
-                    }
+                    // Salva l'id del corso attuale
+                    const vecchioCorsoId =
+                        clienti[0].corso_id;
 
 
-                    // Libera un posto nel vecchio corso
-                    const sqlLiberaPosto = `
-                        UPDATE corsi
-                        SET posti_disponibili = posti_disponibili + 1
-                        WHERE id = ?
-                    `;
+                    // Funzione che aggiorna i dati del cliente
+                    const aggiornaCliente = () => {
 
-                    db.query(
-                        sqlLiberaPosto, [vecchioCorsoId],
-                        (errore, risultato) => {
+                        const sqlUpdateCliente = `
+                            UPDATE clienti
+                            SET
+                                nome = ?,
+                                cognome = ?,
+                                email = ?,
+                                corso_id = ?,
+                                scadenza_abbonamento = ?
+                            WHERE id = ?
+                        `;
 
-                            if (errore) {
-                                return db.rollback(() => {
-                                    console.error(
-                                        'Errore nel liberare il vecchio posto:',
-                                        errore
-                                    );
 
-                                    res.status(500).json({
-                                        errore: 'Errore nell\'aggiornamento del vecchio corso'
+                        const valori = [
+                            nome,
+                            cognome,
+                            email,
+                            corsoId,
+                            scadenzaAbbonamento,
+                            id
+                        ];
+
+
+                        connection.query(
+                            sqlUpdateCliente,
+                            valori,
+                            (errore) => {
+
+                                if (errore) {
+
+                                    return connection.rollback(() => {
+
+                                        connection.release();
+
+                                        console.error(
+                                            'Errore nella modifica del cliente:',
+                                            errore
+                                        );
+
+                                        res.status(500).json({
+                                            errore: 'Errore nella modifica del cliente'
+                                        });
                                     });
-                                });
-                            }
+                                }
 
 
-                            // Controllo di sicurezza
-                            if (risultato.affectedRows === 0) {
-                                return db.rollback(() => {
-                                    res.status(404).json({
-                                        errore: 'Vecchio corso non trovato'
-                                    });
-                                });
-                            }
-
-
-                            // Occupa un posto nel nuovo corso
-                            const sqlOccupaPosto = `
-                                UPDATE corsi
-                                SET posti_disponibili = posti_disponibili - 1
-                                WHERE id = ?
-                                AND posti_disponibili > 0
-                            `;
-
-                            db.query(
-                                sqlOccupaPosto, [corsoId],
-                                (errore, risultato) => {
+                                // Conferma tutte le modifiche
+                                connection.commit((errore) => {
 
                                     if (errore) {
-                                        return db.rollback(() => {
+
+                                        return connection.rollback(() => {
+
+                                            connection.release();
+
                                             console.error(
-                                                'Errore nell\'occupazione del nuovo posto:',
+                                                'Errore nel commit:',
                                                 errore
                                             );
 
                                             res.status(500).json({
-                                                errore: 'Errore nell\'aggiornamento del nuovo corso'
+                                                errore: 'Errore nel salvataggio'
                                             });
                                         });
                                     }
 
 
-                                    // Nessun posto disponibile
-                                    if (risultato.affectedRows === 0) {
-                                        return db.rollback(() => {
-                                            res.status(400).json({
-                                                errore: 'Il nuovo corso è al completo'
+                                    // Restituisce la connessione al pool
+                                    connection.release();
+
+
+                                    // Restituisce il cliente modificato
+                                    res.status(200).json({
+                                        id: Number(id),
+                                        nome,
+                                        cognome,
+                                        email,
+                                        corsoId,
+                                        scadenzaAbbonamento
+                                    });
+
+                                });
+
+                            }
+                        );
+
+                    };
+
+
+                    // Se il corso NON è cambiato,
+                    // aggiorna solamente il cliente
+                    if (
+                        Number(vecchioCorsoId) ===
+                        Number(corsoId)
+                    ) {
+
+                        aggiornaCliente();
+                        return;
+                    }
+
+
+                    // Se il corso è cambiato,
+                    // controlla il nuovo corso
+                    const sqlNuovoCorso = `
+                        SELECT id, posti_disponibili
+                        FROM corsi
+                        WHERE id = ?
+                        FOR UPDATE
+                    `;
+
+
+                    connection.query(
+                        sqlNuovoCorso, [corsoId],
+                        (errore, corsi) => {
+
+                            if (errore) {
+
+                                return connection.rollback(() => {
+
+                                    connection.release();
+
+                                    console.error(
+                                        'Errore nel controllo del nuovo corso:',
+                                        errore
+                                    );
+
+                                    res.status(500).json({
+                                        errore: 'Errore nel controllo del nuovo corso'
+                                    });
+                                });
+                            }
+
+
+                            // Il nuovo corso non esiste
+                            if (corsi.length === 0) {
+
+                                return connection.rollback(() => {
+
+                                    connection.release();
+
+                                    res.status(404).json({
+                                        errore: 'Nuovo corso non trovato'
+                                    });
+                                });
+                            }
+
+
+                            // Il nuovo corso è pieno
+                            if (
+                                corsi[0].posti_disponibili <= 0
+                            ) {
+
+                                return connection.rollback(() => {
+
+                                    connection.release();
+
+                                    res.status(400).json({
+                                        errore: 'Il nuovo corso è al completo'
+                                    });
+                                });
+                            }
+
+
+                            // Libera un posto nel vecchio corso
+                            const sqlLiberaPosto = `
+                                UPDATE corsi
+                                SET posti_disponibili =
+                                    posti_disponibili + 1
+                                WHERE id = ?
+                            `;
+
+
+                            connection.query(
+                                sqlLiberaPosto, [vecchioCorsoId],
+                                (errore, risultato) => {
+
+                                    if (errore) {
+
+                                        return connection.rollback(() => {
+
+                                            connection.release();
+
+                                            console.error(
+                                                'Errore nel liberare il vecchio posto:',
+                                                errore
+                                            );
+
+                                            res.status(500).json({
+                                                errore: 'Errore nell\'aggiornamento del vecchio corso'
                                             });
                                         });
                                     }
 
 
-                                    // Solo dopo aver sistemato i posti
-                                    // modifica il cliente
-                                    aggiornaCliente();
+                                    // Controlla che il vecchio corso esista
+                                    if (
+                                        risultato.affectedRows === 0
+                                    ) {
+
+                                        return connection.rollback(() => {
+
+                                            connection.release();
+
+                                            res.status(404).json({
+                                                errore: 'Vecchio corso non trovato'
+                                            });
+                                        });
+                                    }
+
+
+                                    // Occupa un posto nel nuovo corso
+                                    const sqlOccupaPosto = `
+                                        UPDATE corsi
+                                        SET posti_disponibili =
+                                            posti_disponibili - 1
+                                        WHERE id = ?
+                                        AND posti_disponibili > 0
+                                    `;
+
+
+                                    connection.query(
+                                        sqlOccupaPosto, [corsoId],
+                                        (errore, risultato) => {
+
+                                            if (errore) {
+
+                                                return connection.rollback(() => {
+
+                                                    connection.release();
+
+                                                    console.error(
+                                                        'Errore nell\'occupazione del nuovo posto:',
+                                                        errore
+                                                    );
+
+                                                    res.status(500).json({
+                                                        errore: 'Errore nell\'aggiornamento del nuovo corso'
+                                                    });
+                                                });
+                                            }
+
+
+                                            // Il nuovo corso non ha posti
+                                            if (
+                                                risultato.affectedRows === 0
+                                            ) {
+
+                                                return connection.rollback(() => {
+
+                                                    connection.release();
+
+                                                    res.status(400).json({
+                                                        errore: 'Il nuovo corso è al completo'
+                                                    });
+                                                });
+                                            }
+
+
+                                            // Ora modifica il cliente
+                                            aggiornaCliente();
+
+                                        }
+                                    );
 
                                 }
                             );
